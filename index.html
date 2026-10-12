@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="픽셀 토마토">
+<link rel="icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>픽셀 토마토</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Micro+5&display=swap">
+<style>
+/* page base */
+:root { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+body { margin: 0; font: 14px system-ui, sans-serif; }
+[hidden] { display: none !important; }
+</style>
+<style>
+/* Layout: one-screen phone app. Pixel tomato and stacked dot-matrix time in the middle, controls below, tab bar at the bottom. One committed dark look, like a pixel clock on black. */
+:root {
+  color-scheme: dark;
+  --bg: #050505;
+  --panel: #121212;
+  --line: #2b2b2b;
+  --ink: #dcdcdc;
+  --muted: #8c8c8c;
+  --digit: #c6c6c6;
+
+  --accent: #f2493f;
+  --accent-deep: #a82d28;
+
+  --red-hi: #fd4b4b;
+  --red-lit: #e53130;
+  --red: #c73132;
+  --red-dark: #aa2828;
+  --red-deep: #902626;
+  --leaf-lit: #28b345;
+  --leaf-mid: #1b7b3c;
+  --leaf-dark: #26513e;
+  --hl: #ffffff;
+
+  --off-hi: #484848;
+  --off-lit: #3c3c3c;
+  --off-base: #383838;
+  --off-dark: #323232;
+  --off-deep: #2e2e2e;
+  --off-leaf-lit: #464646;
+  --off-leaf-mid: #353535;
+  --off-leaf-dark: #2c2c2c;
+  --off-hl: #666666;
+
+  --wood-top: #d4a869;
+  --wood-edge: #a8793f;
+  --steel: #dfe3e8;
+  --steel-dark: #9aa3ae;
+  --handle: #7a553c;
+  --flesh: #ff8b7b;
+
+  --font-pixel: "Micro 5", "Courier New", monospace;
+  --font-body: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  padding-inline: 16px;
+  padding-block: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font-family: inherit; }
+:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+#pile { position: fixed; left: 0; top: 0; z-index: 0; pointer-events: none; image-rendering: pixelated; }
+.app {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* timer tab */
+.stage { flex: 1; min-height: 0; position: relative; }
+#cv {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+  image-rendering: pixelated;
+}
+.meta { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.pill {
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+  white-space: nowrap;
+  padding: 5px 12px;
+  border: 3px dotted var(--muted);
+  border-radius: 8px;
+  color: var(--ink);
+}
+.pill .d { display: inline-block; width: 1ch; text-align: center; }
+.status-row { display: flex; align-items: center; justify-content: center; gap: 12px; max-width: 100%; }
+#scene { flex: none; display: block; image-rendering: pixelated; }
+#status { margin: 0; min-width: 0; font-size: 1.15rem; text-align: left; }
+.count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  max-width: 100%;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.tomatoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; }
+.mini { display: block; width: 27px; height: 24px; image-rendering: pixelated; }
+.mini.slice { height: 15px; }
+.legend { display: inline-flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; justify-content: center; font-family: var(--font-pixel); font-size: 1.05rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend .mini { width: 18px; height: 16px; }
+.legend .mini.slice { width: 17px; height: 15px; }
+.legend .mini { image-rendering: auto; }
+.legend .mini.giant { width: 18px; height: 16px; }
+.mini.new { animation: pop 0.45s steps(4) 1; }
+@keyframes pop { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mini.new { animation: none; } }
+
+.controls { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; }
+.btn {
+  min-height: 54px;
+  padding: 0 16px;
+  font-size: 1.2rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 0 4px 0 #000, 0 4px 0 2px var(--line);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn svg, .tab svg { display: block; }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+.btn:disabled { color: var(--muted); border-color: var(--line); cursor: default; box-shadow: none; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #1b0605; }
+
+/* settings tab */
+.settings { overflow-y: auto; }
+.group {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.group h2 { margin: 0; font-size: 1.1rem; font-weight: 400; }
+.hint { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.chips.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.chip {
+  min-height: 52px;
+  font-size: 1.15rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 0;
+  cursor: pointer;
+}
+.chip[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #1b0605; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.row span { font-size: 1.05rem; }
+.row .total { color: var(--ink); font-size: 1.2rem; }
+.switch {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 30px;
+  padding: 0;
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 0;
+  cursor: pointer;
+}
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: var(--muted); }
+.switch[aria-checked="true"] { background: var(--accent-deep); border-color: var(--accent); }
+.switch[aria-checked="true"]::after { left: 29px; background: #ffffff; }
+
+/* tab bar */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--line); }
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0 8px;
+  margin-top: -2px;
+  font-size: 1.05rem;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-top: 3px solid transparent;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-top-color: var(--accent); }
+</style>
+</head>
+<body>
+<canvas id="pile" aria-hidden="true"></canvas>
+<main class="app">
+  <section id="panel-timer" class="panel" role="tabpanel" aria-labelledby="tab-timer">
+    <div class="stage" id="stage"><canvas id="cv" aria-hidden="true"></canvas></div>
+    <div class="meta">
+      <span class="pill" id="datePill">MON 10/12</span>
+      <div class="status-row">
+        <canvas id="scene" width="132" height="68" aria-hidden="true"></canvas>
+        <p id="status" class="sr-only" aria-live="polite">25분 집중, 준비됐어요</p>
+      </div>
+    </div>
+    <div class="controls">
+      <button type="button" class="btn primary" id="btnStart"></button>
+      <button type="button" class="btn" id="btnReset"></button>
+    </div>
+  </section>
+
+  <section id="panel-settings" class="panel settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <div class="group">
+      <h2>집중 시간</h2>
+      <div class="chips" role="radiogroup" aria-label="집중 시간" id="chips"></div>
+      <p class="hint">시간을 바꾸면 타이머가 처음으로 돌아가요.</p>
+    </div>
+    <div class="group">
+      <div class="row">
+        <span id="lblWake">화면 켜 두기</span>
+        <button type="button" class="switch" id="swWake" role="switch" aria-checked="true" aria-labelledby="lblWake"></button>
+      </div>
+      <p class="hint" id="wakeHint"></p>
+    </div>
+    <div class="group">
+      <div class="row">
+        <span id="lblSound">끝났을 때 소리</span>
+        <button type="button" class="switch" id="swSound" role="switch" aria-checked="true" aria-labelledby="lblSound"></button>
+      </div>
+    </div>
+    <div class="group">
+      <h2>떨어지는 토마토</h2>
+      <div class="chips two" role="radiogroup" aria-label="떨어지는 토마토 기준" id="pileChips"></div>
+      <p class="hint">타이머 화면 뒤에 쌓이는 토마토를 오늘 누적 시간 또는 전체 누적 시간에 맞춰 보여줘요.</p>
+    </div>
+    <div class="group">
+      <h2>쌓인 집중 시간</h2>
+      <div class="row"><span>오늘</span><span class="total" id="totToday">0분</span></div>
+      <div class="row"><span>전체</span><span class="total" id="totAll">0분</span></div>
+      <div class="count" id="count" role="img" aria-label="오늘 집중 0분">
+        <span class="legend" id="legend"></span>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="화면 선택">
+    <button type="button" class="tab" id="tab-timer" role="tab" aria-selected="true" aria-controls="panel-timer" aria-label="타이머"></button>
+    <button type="button" class="tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" aria-label="설정"></button>
+  </nav>
+</main>
+<div class="sr-only" role="timer" id="srTime"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var BASE_TITLE = "픽셀 토마토";
+  var DURATIONS = [5, 10, 25, 40, 60];
+  /* 17 x 17 tomato read cell by cell from the reference picture.
+     L/g/G = leaf (light, mid, dark), B/b/r/R/D = body from light to dark red, w = white highlight */
+  var TOMATO = [
+    "........Lg.......",
+    ".....GL.g........",
+    "......GLg.GGG....",
+    ".......GgGgg.....",
+    "...BBBBGGGDDRR...",
+    "..bBbbwRDDrrrRR..",
+    ".bbbbwRRrrrrrRRD.",
+    "bbbbwrRrrrrrrRRRD",
+    "bbbbrrrrrrrrrRRRD",
+    "bbbrrrrrrrrrrRRRD",
+    "rrrrrrrrrrrrrRRRD",
+    "rrrrrrrrrrrrRRRRD",
+    ".RrrrrrrrrrrRRRDD",
+    ".RRrrrrrrrrRRRDD.",
+    "..RRRrrRRRRRRDD..",
+    "...RRRRRRRRRDD...",
+    ".....DDDDDDD....."
+  ];
+  var TH = TOMATO.length;
+  var COLS = TOMATO[0].length;
+  var ROWS = TH + 19;
+  var DX = (COLS - 11) / 2;
+
+  /* 5 x 7 dot-matrix digits */
+  var FONT = {
+    "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+    "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+    "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+    "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+    "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+    "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+    "6": ["00110", "01000", "10000", "11110", "10001", "10001", "01110"],
+    "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+    "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+    "9": ["01110", "10001", "10001", "01111", "00001", "00010", "01100"]
+  };
+
+  /* ---------- storage (best effort) ---------- */
+  var store = {
+    get: function (k, d) {
+      try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
+    },
+    set: function (k, v) {
+      try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+    }
+  };
+  var settings = {
+    minutes: store.get("ptm.minutes", 25),
+    wake: store.get("ptm.wake", true),
+    sound: store.get("ptm.sound", true),
+    pile: store.get("ptm.pile", "today") === "total" ? "total" : "today"
+  };
+  if (DURATIONS.indexOf(settings.minutes) < 0) settings.minutes = 25;
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function todayKey() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  /* focus minutes finished today; every 10 min is one slice, every 60 min one whole tomato */
+  function getDone() { var o = store.get("ptm.done", null); return o && o.d === todayKey() && o.m > 0 ? o.m : 0; }
+  function getTotal() { var t = store.get("ptm.total", 0); return t > 0 ? t : getDone(); }
+  function addDone(min) {
+    store.set("ptm.total", getTotal() + min);
+    store.set("ptm.done", { d: todayKey(), m: getDone() + min });
+  }
+  function fmtMin(m) { var h = Math.floor(m / 60); return h ? h + "시간 " + (m % 60) + "분" : m + "분"; }
+
+  /* ---------- tomato cells ---------- */
+  var cells = [];
+  TOMATO.forEach(function (row, r) {
+    for (var c = 0; c < row.length; c++) {
+      var ch = row.charAt(c);
+      if (ch !== ".") cells.push({ r: r, c: c, k: ch, o: 0, key: 0 });
+    }
+  });
+  var TOTAL = cells.length;
+  var LEAF = { L: 1, G: 1, g: 1 };
+
+  /* Random fill order. Leaf cells get evenly spaced time slots (in random order) so green keeps showing up during the run. */
+  function shuffleOrder() {
+    var leafCount = 0;
+    cells.forEach(function (c) { if (LEAF[c.k]) leafCount++; });
+    var strata = [];
+    for (var i = 0; i < leafCount; i++) strata.push(i);
+    for (var j = strata.length - 1; j > 0; j--) {
+      var m = Math.floor(Math.random() * (j + 1));
+      var t = strata[j]; strata[j] = strata[m]; strata[m] = t;
+    }
+    var n = 0;
+    cells.forEach(function (c) {
+      c.key = LEAF[c.k] ? (strata[n++] + Math.random()) / leafCount : Math.random();
+    });
+    cells.slice().sort(function (a, b) { return a.key - b.key; }).forEach(function (c, idx) { c.o = idx; });
+  }
+  shuffleOrder();
+
+  /* ---------- colors from CSS tokens ---------- */
+  var rootStyle = getComputedStyle(document.documentElement);
+  function tok(n) { return rootStyle.getPropertyValue(n).trim(); }
+  var COL = {
+    on: {
+      B: tok("--red-hi"), b: tok("--red-lit"), r: tok("--red"), R: tok("--red-dark"), D: tok("--red-deep"),
+      L: tok("--leaf-lit"), g: tok("--leaf-mid"), G: tok("--leaf-dark"), w: tok("--hl")
+    },
+    off: {
+      B: tok("--off-hi"), b: tok("--off-lit"), r: tok("--off-base"), R: tok("--off-dark"), D: tok("--off-deep"),
+      L: tok("--off-leaf-lit"), g: tok("--off-leaf-mid"), G: tok("--off-leaf-dark"), w: tok("--off-hl")
+    },
+    digit: tok("--digit")
+  };
+
+  /* ---------- elements ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $("stage"), cv = $("cv"), ctx = cv.getContext("2d");
+  var btnStart = $("btnStart"), btnReset = $("btnReset");
+  var statusEl = $("status"), countEl = $("count"), pillEl = $("datePill"), srTime = $("srTime");
+  var reduced = false;
+  try { reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+
+  /* ---------- timer state ---------- */
+  var state = { phase: "idle", totalMs: settings.minutes * 60000, remainMs: settings.minutes * 60000, endAt: 0, startRemain: 0, credited: 0 };
+
+  /* focus time is banked in 5-minute steps while the timer runs, so a slice drops as each 5 minutes pass */
+  function credit(remainMs) {
+    var mins = Math.floor((state.totalMs - remainMs) / 300000) * 5;
+    if (mins > state.credited) { addDone(mins - state.credited); state.credited = mins; }
+  }
+  var tickTimer = null, blinkTimer = null, blinkOn = true;
+
+  function startTick() { stopTick(); } /* tick() is driven by the per-second loop below, in step with the clock */
+  function stopTick() { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
+  function stopBlink() { if (blinkTimer) { clearInterval(blinkTimer); blinkTimer = null; } blinkOn = true; }
+
+  function tick() {
+    if (state.phase !== "running") return;
+    var remain = Math.min(state.endAt - Date.now(), state.startRemain);
+    if (remain <= 0) { finish(); return; }
+    state.remainMs = remain;
+    credit(remain);
+    render();
+  }
+
+  function start() {
+    if (state.phase === "done") reset();
+    if (state.phase === "running") return;
+    ensureAudio();
+    /* begin on the next wall-clock second so the countdown flips together with the clock */
+    state.startRemain = state.remainMs;
+    state.endAt = Math.ceil(Date.now() / 1000) * 1000 + state.remainMs - 1000;
+    state.phase = "running";
+    startTick();
+    acquireWake();
+    render();
+  }
+
+  function pause() {
+    if (state.phase !== "running") return;
+    state.remainMs = Math.max(0, Math.ceil(Math.min(state.endAt - Date.now(), state.startRemain) / 1000) * 1000);
+    state.phase = "paused";
+    stopTick();
+    releaseWake();
+    render();
+  }
+
+  function reset() {
+    stopTick();
+    stopBlink();
+    releaseWake();
+    state.phase = "idle";
+    state.totalMs = settings.minutes * 60000;
+    state.remainMs = state.totalMs;
+    state.credited = 0;
+    shuffleOrder();
+    render();
+  }
+
+  function finish() {
+    stopTick();
+    releaseWake();
+    state.phase = "done";
+    state.remainMs = 0;
+    credit(0);
+    justAdded = true;
+    beep();
+    stopBlink();
+    if (!reduced) {
+      var n = 0;
+      blinkTimer = setInterval(function () {
+        blinkOn = !blinkOn;
+        n++;
+        if (n >= 16) stopBlink();
+        render();
+      }, 500);
+    }
+    render();
+  }
+
+  /* ---------- keep the screen on ---------- */
+  var wakeLock = null;
+  var wakeSupported = "wakeLock" in navigator;
+  function acquireWake() {
+    if (!settings.wake || !wakeSupported || wakeLock) return;
+    try {
+      navigator.wakeLock.request("screen").then(function (lock) {
+        wakeLock = lock;
+        lock.addEventListener("release", function () { if (wakeLock === lock) wakeLock = null; });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  function releaseWake() {
+    var lock = wakeLock;
+    wakeLock = null;
+    try { if (lock) lock.release(); } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") {
+      if (state.phase === "running") { tick(); acquireWake(); }
+      render();
+    }
+  });
+
+  /* ---------- sound ---------- */
+  var ac = null;
+  function ensureAudio() {
+    if (!settings.sound) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!ac) ac = new AC();
+      if (ac.state === "suspended") ac.resume();
+    } catch (e) {}
+  }
+  function beep() {
+    if (!settings.sound || !ac) return;
+    try {
+      var t = ac.currentTime;
+      [0, 0.22, 0.44].forEach(function (d, i) {
+        var o = ac.createOscillator(), g = ac.createGain();
+        o.type = "square";
+        o.frequency.value = i === 2 ? 988 : 784;
+        g.gain.setValueAtTime(0.0001, t + d);
+        g.gain.exponentialRampToValueAtTime(0.12, t + d + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.18);
+        o.connect(g);
+        g.connect(ac.destination);
+        o.start(t + d);
+        o.stop(t + d + 0.2);
+      });
+    } catch (e) {}
+  }
+
+  /* ---------- canvas ---------- */
+  var cell = 8, S = 8, gap = 1, dpr = 1;
+
+  function layout() {
+    sceneLayout();
+    var r = stage.getBoundingClientRect();
+    cell = Math.max(4, Math.floor(Math.min(r.width / COLS, r.height / ROWS)));
+    dpr = window.devicePixelRatio || 1;
+    S = cell * dpr;
+    gap = Math.max(1, Math.round(S * 0.07));
+    cv.style.width = cell * COLS + "px";
+    cv.style.height = cell * ROWS + "px";
+    cv.width = Math.round(cell * COLS * dpr);
+    cv.height = Math.round(cell * ROWS * dpr);
+    draw();
+  }
+
+  function box(cx, cy) {
+    var x1 = Math.round(cx * S), y1 = Math.round(cy * S);
+    var x2 = Math.round((cx + 1) * S), y2 = Math.round((cy + 1) * S);
+    ctx.fillRect(x1, y1, x2 - x1 - gap, y2 - y1 - gap);
+  }
+
+  function drawDigit(ch, x, y) {
+    var g = FONT[ch];
+    if (!g) return;
+    for (var r = 0; r < 7; r++) {
+      for (var c = 0; c < 5; c++) {
+        if (g[r].charAt(c) === "1") box(x + c, y + r);
+      }
+    }
+  }
+
+  function drawPair(text, y) {
+    drawDigit(text.charAt(0), DX, y);
+    drawDigit(text.charAt(1), DX + 6, y);
+  }
+
+  function progress() {
+    if (state.phase === "done") return 1;
+    return Math.min(1, Math.max(0, 1 - state.remainMs / state.totalMs));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    var filled = Math.floor(progress() * TOTAL + 1e-6);
+    cells.forEach(function (c) {
+      ctx.fillStyle = c.o < filled ? COL.on[c.k] : COL.off[c.k];
+      box(c.c, c.r);
+    });
+    if (state.phase === "done" && !blinkOn) return;
+    var secs = Math.ceil(state.remainMs / 1000);
+    var mm = pad2(Math.floor(secs / 60)), ss = pad2(secs % 60);
+    ctx.fillStyle = COL.digit;
+    drawPair(mm, TH + 2);
+    box(DX + 2, TH + 10);
+    box(DX + 8, TH + 10);
+    drawPair(ss, TH + 12);
+  }
+
+  /* ---------- text + buttons ---------- */
+  /* little tomato icons, one per finished round today */
+  var MINI = [
+    "....L....",
+    "..GGLGG..",
+    ".BbbGrrR.",
+    "BbwrrrrRD",
+    "bbrrrrrRD",
+    "brrrrrrRD",
+    ".rrrrrRD.",
+    "..RRRDD.."
+  ];
+  /* one slice of tomato (5 min); five slices melt into one whole tomato (25 min) */
+  var SLICE = [
+    "....aaaaag....",
+    "..aggccccgd...",
+    ".adgcgcggcga..",
+    ".dgcdgcggccdag",
+    "aggccgggicggdc",
+    "agdcciiiicdgdc",
+    "agcidhchhicgdg",
+    "aggcigcggccgdb",
+    "aggcgchciccgda",
+    ".bbgggggggbba.",
+    ".abbbghggbba..",
+    "...aaaaaaaa..."
+  ];
+  var SLICE_PAL = { a: "#87240e", b: "#b12722", c: "#c7342a", d: "#df4537", e: "#a16555", f: "#e85f4b", g: "#fc745b", h: "#f68d72", i: "#fbb599" };
+  /* the small tomato that drops (same look as the giant one, 18x16 cells) */
+  var TOMATO = [
+    ".........g........",
+    "......g..e.a......",
+    "....eaee..a..a....",
+    "..dfa..ee.eabccb..",
+    ".afffdgeedagafcca.",
+    ".dffhhdffffdfffcc.",
+    "affhiihffffffffdca",
+    "affhhhhfffffffffcb",
+    "affffffffffffffdca",
+    "affffffffffffffcca",
+    "acffffffffffffccca",
+    ".ccdfffffffffcccd.",
+    ".acccffffffccccda.",
+    "..bcccccccccccdb..",
+    "...bbcccccccdbb...",
+    ".....abbbddba....."
+  ];
+  var TOMATO_PAL = { a: "#693322", b: "#893327", c: "#a5312e", d: "#b23e37", e: "#7b7551", f: "#ca4338", g: "#98a770", h: "#e76f5c", i: "#ee9b89", j: "#d4ada1" };
+  /* a giant tomato with ribs and a leafy star on top, 5x the size of the small one (500 min = 20 tomatoes) */
+  var GIANT = [
+    ".............................................",
+    ".....................AAKE....................",
+    ".....................AKKE....................",
+    "......................KKE....................",
+    "..............A....CCAKKEACCCAA..............",
+    "..............EKKA.DDAKK.DDD.KE..............",
+    ".........CCCD..AKKK..KKE.DD.EEA.DCCCC........",
+    "........CLLLLIBBAKKK.KK..DE..EBDICCCCB.......",
+    "........CLLLLIIDAKKK.KK....EAADDIIIIIC.......",
+    ".....CCCLNNLLLLIDA.E.KK..EE.DDIILLIIIICC.....",
+    "....CLLLNNNL.......E.KK..EE.AAA..IIIIIIIC....",
+    "....CLLNLIIHKKKKKKKE.AE..EEKKKKKKADDDDIIIC...",
+    "....CLLNLIIAKKKKKKKE....EEKKKKKKK.DDDDIIIC...",
+    "...CLLLLLIII.......K.E...KKK.....DDIIDDDDC...",
+    ".CCIILLLIIIIDDDD.KKK..KKKA.ACCCCDIIIIIIIDDCC.",
+    ".BCILFFFFDDDLFFAKKKAFFFAKKKK.DDDCCDDIIIIIFCC.",
+    ".BCILFFFFDDDLFBAKKKAFFFAKKKK.DDDCCDDIIIIIFCC.",
+    ".BCIIFFDDLLNLAAKKAAFIIII..KK.LLLDDDCDIIIIFCC.",
+    "CIIIFDDFLNNLI.AK.FFIIIIIIFB.FLNNLLDDCFIIIDIIC",
+    "CIIIDIILNLLLIFF.FLLLLLLIIIIFFLLLLLIICDFFIDIIC",
+    "CIIIDIILNLLLIFFAFLLLLLLIIIIFFLLLLLIICDDFIDIIC",
+    "CIIIDIILLLLIIFFFLNNNLLLLIIIIFFIILLIIICDDDDIIC",
+    "CFFIDIILIIIIFIILNNNLLLLLIIIIFFIIILIIIICCDDIIC",
+    "CFFFDIILIIIIFIILNLLLLLLLIIIIIFIIIIIIIICCDDIIC",
+    "CDDDDIIIIIIFFIILLLLLLLLLIIIIIFFFIIIIIICCDDIIC",
+    "CDDDDIIIIIIFFIILLLLLLLLLIIIIIFFFIIIIIICCDDIIC",
+    "CDDDDIIIIFFCFIIILLLLLLLIIIIIIFFFIIIIIICCDDIIC",
+    ".CCDDIIIIFFCFIIIILLLLIIIIIIIIFFCDIIIIDCCDDCC.",
+    ".BCDDDDIIFFCFFFIIIIIIIIIIIIIFICCDIIIDDCCDDCC.",
+    ".BCDDDDIIFFCFFFIIIIIIIIIIIIIFICCDIIIDDCCDDCB.",
+    "...CDDDDIFFCFFFIIIIIIIIIIIIIFICCDDDDDDCCDC...",
+    "...CDDDDIFFCFFFFIIIIIIIIIIIIFICCDDDDDCDDDC...",
+    "....CDDDDDDDCFFFIIIIIIIIIIFFFICCDDDDDCDDC....",
+    "....BDDDDDDDCFFFIIIIIIIIIIFFFICCDDDDDCCDB....",
+    ".....CCDDDDDCFFFFFFIIIIIFFFFFICCDDDDDCCC.....",
+    ".......CDDDDDCCFFFFFFFFFFFFFFCCDDDDDDC.......",
+    "........CCCDDCCFFFFFFFFFFFFFCDDDDDCCC........",
+    "........BBBCCCCCFFFFFFFFFFFCCCCCCCCBB........",
+    "...........CCCCCFFFFFFFFFFCCCCCCCCB..........",
+    "................CCCCCCCCCC..................."
+  ];
+  var GIANT_PAL = { A: "#1f4216", B: "#662716", C: "#8c2115", D: "#af2628", E: "#507040", F: "#c52527", G: "#cf3931", H: "#9b6152", I: "#e43e32", J: "#e35243", K: "#90b955", L: "#fb795f", M: "#dc9c8b", N: "#fccfbc" };
+  var miniUrl = "", sliceUrl = "", giantUrl = "";
+  var shownDone = -1, justAdded = false;
+  var countBox = $("count"), legendEl = $("legend");
+
+  function mapCanvas(map, pal, s) {
+    var c = document.createElement("canvas");
+    c.width = map[0].length * s;
+    c.height = map.length * s;
+    var x = c.getContext("2d");
+    map.forEach(function (row, r) {
+      for (var i = 0; i < row.length; i++) {
+        var ch = row.charAt(i);
+        if (ch === ".") continue;
+        x.fillStyle = pal[ch];
+        x.fillRect(i * s, r * s, s, s);
+      }
+    });
+    return c;
+  }
+  function buildMini() {
+    try {
+      miniUrl = mapCanvas(TOMATO, TOMATO_PAL, 4).toDataURL("image/png");
+      sliceUrl = mapCanvas(SLICE, SLICE_PAL, 4).toDataURL("image/png");
+      giantUrl = mapCanvas(GIANT, GIANT_PAL, 2).toDataURL("image/png");
+    } catch (e) { miniUrl = ""; sliceUrl = ""; giantUrl = ""; }
+  }
+
+  function icon(url, cls) {
+    var img = new Image();
+    img.className = "mini" + (cls ? " " + cls : "");
+    img.alt = "";
+    img.src = url;
+    return img;
+  }
+  function buildLegend() {
+    legendEl.textContent = "";
+    var a = document.createElement("span"), b = document.createElement("span");
+    var ta = document.createElement("span"), tb = document.createElement("span");
+    a.appendChild(icon(sliceUrl, "slice"));
+    ta.textContent = "= 5min";
+    a.appendChild(ta);
+    b.appendChild(icon(miniUrl, ""));
+    tb.textContent = "= 25min";
+    b.appendChild(tb);
+    var c = document.createElement("span"), tc = document.createElement("span");
+    c.appendChild(icon(giantUrl, "giant"));
+    tc.textContent = "= 500min";
+    c.appendChild(tc);
+    legendEl.appendChild(a);
+    legendEl.appendChild(b);
+    legendEl.appendChild(c);
+  }
+
+  /* ---------- falling tomatoes behind the screen (a little like the watermelon game) ---------- */
+  /* Every finished 5 minutes drops one slice from the top; the fifth slice melts the five into a whole tomato. */
+  var pileCv = $("pile"), pctx = pileCv.getContext("2d");
+  var P = { W: 0, H: 0, dpr: 1, bodies: [], raf: 0, last: 0, calm: 0, pending: 0, gen: 0, sprT: null, sprS: null, sprC: null };
+  var GRAV = 1500, BOUNCE = 0.12, R_T = 16, R_S = 12, R_C = 80;
+
+  function pileLayout() {
+    var d = window.devicePixelRatio || 1, w = window.innerWidth, h = window.innerHeight;
+    if (P.sprT && w === P.W && h === P.H && d === P.dpr) return;
+    P.dpr = d; P.W = w; P.H = h;
+    pileCv.width = Math.round(w * d);
+    pileCv.height = Math.round(h * d);
+    pileCv.style.width = w + "px";
+    pileCv.style.height = h + "px";
+    P.sprT = mapCanvas(TOMATO, TOMATO_PAL, Math.max(1, Math.round(2 * d)));
+    P.sprS = mapCanvas(SLICE, SLICE_PAL, Math.max(1, Math.round(2 * d)));
+    P.sprC = mapCanvas(GIANT, GIANT_PAL, Math.max(1, Math.round(4 * d)));
+    P.bodies.forEach(function (b) {
+      b.x = Math.min(Math.max(b.x, b.r), w - b.r);
+      b.y = Math.min(b.y, h - b.r);
+    });
+    pileWake();
+  }
+
+  function pileSpawn(kind, x, y, vy) {
+    var r = kind === "t" ? R_T : kind === "c" ? R_C : R_S;
+    if (x === undefined) x = r + Math.random() * Math.max(1, P.W - 2 * r);
+    if (y === undefined) y = -r - 2;
+    P.bodies.push({ kind: kind, r: r, m: r * r, x: x, y: y, vx: (Math.random() - 0.5) * 60, vy: vy || 0 });
+    pileWake();
+  }
+
+  function pileLater(fn, ms) {
+    var g = P.gen;
+    P.pending++;
+    setTimeout(function () {
+      P.pending--;
+      if (g === P.gen) fn();
+      pileWake();
+    }, ms);
+  }
+
+  /* n bodies of one kind melt into one body of the next kind, popping out where they were */
+  function pileMerge(from, n, to) {
+    var sl = P.bodies.filter(function (b) { return b.kind === from; }).slice(0, n);
+    if (sl.length < n) return;
+    var cx = 0, cy = 0;
+    sl.forEach(function (b) { cx += b.x; cy += b.y; });
+    P.bodies = P.bodies.filter(function (b) { return sl.indexOf(b) < 0; });
+    pileSpawn(to, cx / n, cy / n - 10, -140);
+  }
+
+  /* drop everything for a given number of focused minutes (start of the day, or after a day change) */
+  function pileRebuild(m) {
+    P.gen++;
+    P.bodies = [];
+    var C = Math.min(8, Math.floor(m / 500)), rest = m % 500;
+    var T = Math.floor(rest / 25), S = Math.floor((rest % 25) / 5), k = 0, i;
+    for (i = 0; i < C; i++) pileLater(function () { pileSpawn("c"); }, 200 + 90 * k++);
+    for (i = 0; i < T; i++) pileLater(function () { pileSpawn("t"); }, 200 + 90 * k++);
+    for (i = 0; i < S; i++) pileLater(function () { pileSpawn("s"); }, 200 + 90 * k++);
+  }
+
+  /* minutes are added: drop one slice per 5 minutes; five slices melt into a tomato, twenty tomatoes into a giant tomato */
+  function pileAdd(prev, m) {
+    var k = 0;
+    for (var b = Math.floor(prev / 5) + 1; b <= Math.floor(m / 5); b++, k++) {
+      var at = 200 + 450 * k;
+      pileLater(function () { pileSpawn("s"); }, at);
+      if (b % 5 === 0) pileLater(function () { pileMerge("s", 5, "t"); }, at + 1100);
+      if (b % 100 === 0) pileLater(function () { pileMerge("t", 20, "c"); }, at + 2400);
+    }
+  }
+
+  function pileStep(dt) {
+    var bs = P.bodies, i, j, a, c, it;
+    for (i = 0; i < bs.length; i++) {
+      a = bs[i];
+      a.vy += GRAV * dt;
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      if (a.x < a.r) { a.x = a.r; a.vx = Math.abs(a.vx) * BOUNCE; }
+      if (a.x > P.W - a.r) { a.x = P.W - a.r; a.vx = -Math.abs(a.vx) * BOUNCE; }
+      if (a.y > P.H - a.r) {
+        a.y = P.H - a.r;
+        a.vy = a.vy > 80 ? -a.vy * BOUNCE : 0;
+        a.vx *= 0.9;
+      }
+    }
+    for (it = 0; it < 3; it++) {
+      for (i = 0; i < bs.length; i++) {
+        for (j = i + 1; j < bs.length; j++) {
+          a = bs[i]; c = bs[j];
+          var dx = c.x - a.x, dy = c.y - a.y, min = a.r + c.r, d2 = dx * dx + dy * dy;
+          if (d2 >= min * min) continue;
+          var d = Math.sqrt(d2), nx, ny;
+          if (d < 0.001) { nx = 0; ny = 1; d = 0; } else { nx = dx / d; ny = dy / d; }
+          var ov = min - d, tm = a.m + c.m;
+          a.x -= nx * ov * (c.m / tm); a.y -= ny * ov * (c.m / tm);
+          c.x += nx * ov * (a.m / tm); c.y += ny * ov * (a.m / tm);
+          var vn = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
+          if (vn > 0) {
+            var jn = -(1 + BOUNCE) * vn / (1 / a.m + 1 / c.m);
+            a.vx += jn * nx / a.m; a.vy += jn * ny / a.m;
+            c.vx -= jn * nx / c.m; c.vy -= jn * ny / c.m;
+            a.vx *= 0.995; c.vx *= 0.995;
+          }
+        }
+      }
+    }
+  }
+
+  function pileDraw() {
+    var d = P.dpr;
+    pctx.clearRect(0, 0, pileCv.width, pileCv.height);
+    pctx.imageSmoothingEnabled = false;
+    pctx.globalAlpha = 0.55;
+    P.bodies.forEach(function (b) {
+      var spr = b.kind === "t" ? P.sprT : b.kind === "c" ? P.sprC : P.sprS;
+      if (!spr) return;
+      pctx.drawImage(spr, Math.round(b.x * d - spr.width / 2), Math.round((b.y + b.r) * d - spr.height));
+    });
+    pctx.globalAlpha = 1;
+  }
+
+  function pileFrame(t) {
+    var dt = Math.min(0.033, Math.max(0.001, (t - P.last) / 1000));
+    P.last = t;
+    pileStep(dt / 2);
+    pileStep(dt / 2);
+    var fast = 0;
+    P.bodies.forEach(function (b) { fast = Math.max(fast, Math.abs(b.vx) + Math.abs(b.vy)); });
+    P.calm = fast < 12 ? P.calm + 1 : 0;
+    pileDraw();
+    if (P.calm < 45 || P.pending > 0) {
+      P.raf = requestAnimationFrame(pileFrame);
+    } else {
+      P.raf = 0;
+      P.bodies.forEach(function (b) { b.vx = 0; b.vy = 0; });
+    }
+  }
+  function pileWake() {
+    P.calm = 0;
+    if (P.raf) return;
+    P.last = performance.now();
+    P.raf = requestAnimationFrame(pileFrame);
+  }
+  window.addEventListener("resize", pileLayout);
+
+  function pileMinutes() { return settings.pile === "total" ? getTotal() : getDone(); }
+
+  function renderCount() {
+    $("totToday").textContent = fmtMin(getDone());
+    $("totAll").textContent = fmtMin(getTotal());
+    var m = pileMinutes();
+    if (m === shownDone) return;
+    var prev = shownDone;
+    shownDone = m;
+    pileLayout();
+    if (prev < 0 || m < prev) pileRebuild(m); else pileAdd(prev, m);
+    countBox.setAttribute("aria-label", (settings.pile === "total" ? "전체 집중 " : "오늘 집중 ") + m + "분, 거대 토마토 " + Math.floor(m / 500) + "개, 토마토 " + Math.floor((m % 500) / 25) + "개, " + Math.floor((m % 25) / 5) + "조각");
+    justAdded = false;
+  }
+
+  /* ---------- kitchen scene: tomato on a cutting board, with a knife ---------- */
+  var SC = { cols: 33, rows: 17, x0: 11, top: 7, board: 31, knife: 23 }; /* board cells 1..31: 10 free cells left of the tomato, the knife rests to its right */
+  var CUTS = [7, 5, 3, 1]; /* cut lines counted from the left edge of the 9-wide tomato, cut from the right */
+  var CUT_MS = 1000, TAIL_MS = 1000, CYCLE_MS = CUT_MS * CUTS.length + TAIL_MS;
+  var KNIFE_UP = 0, KNIFE_DOWN = 6;
+  var SCOL = {
+    woodTop: tok("--wood-top"), woodEdge: tok("--wood-edge"), steel: tok("--steel"), steelDark: tok("--steel-dark"),
+    handle: tok("--handle"), flesh: tok("--flesh"), juice: tok("--red-lit")
+  };
+  var sceneCv = $("scene"), sctx = sceneCv.getContext("2d");
+  var sCell = 4, sDpr = 1, sS = 4;
+  var sceneTimer = null, sceneStart = 0;
+
+  function sbox(cx, cy, color) {
+    var x1 = Math.round(cx * sS), y1 = Math.round(cy * sS);
+    sctx.fillStyle = color;
+    sctx.fillRect(x1, y1, Math.round((cx + 1) * sS) - x1, Math.round((cy + 1) * sS) - y1);
+  }
+  function ease(t) { return t * t * (3 - 2 * t); }
+  function cutX(i) { return SC.x0 + CUTS[i] - 1; }
+
+  function drawBoard() {
+    for (var x = 1; x <= SC.board; x++) { sbox(x, 15, SCOL.woodTop); sbox(x, 16, SCOL.woodEdge); }
+  }
+
+  /* c = number of cuts made so far, cutP = how far the newest cut has spread apart (0..1) */
+  function tomatoCols(c, cutP) {
+    for (var r = 0; r < MINI.length; r++) {
+      var row = MINI[r];
+      for (var m = 0; m < row.length; m++) {
+        var ch = row.charAt(m);
+        if (ch === ".") continue;
+        var piece = 0;
+        for (var i = 1; i <= c; i++) {
+          var hi = i === 1 ? row.length : CUTS[i - 2];
+          if (m >= CUTS[i - 1] && m < hi) { piece = i; break; }
+        }
+        var shift = piece ? (c - piece) + cutP : 0;
+        var color = COL.on[ch];
+        var face = (piece && m === CUTS[piece - 1]) || (!piece && c > 0 && m === CUTS[c - 1] - 1);
+        if (face && !LEAF[ch] && ch !== "w") color = SCOL.flesh;
+        sbox(SC.x0 + Math.round(m + shift), SC.top + r, color);
+      }
+    }
+  }
+
+  /* knife standing up, edge down. x = left column of the blade, y = top row of the handle */
+  function knifeV(x, y, mess) {
+    var k, j;
+    for (k = 0; k < 3; k++) { sbox(x + 1, y + k, SCOL.handle); sbox(x + 2, y + k, SCOL.handle); }
+    for (j = 3; j < 9; j++) {
+      sbox(x, y + j, SCOL.steel); sbox(x + 1, y + j, SCOL.steel); sbox(x + 2, y + j, SCOL.steelDark);
+    }
+    if (mess) {
+      sbox(x, y + 6, SCOL.juice); sbox(x, y + 7, SCOL.juice); sbox(x + 1, y + 8, SCOL.juice);
+      sbox(x + 3, y + 6, SCOL.flesh); sbox(x + 3, y + 7, SCOL.flesh); sbox(x + 4, y + 7, COL.on.r);
+    }
+  }
+
+  /* knife lying flat on the board */
+  function knifeH(x, y, mess) {
+    var k, h;
+    sbox(x, y + 1, SCOL.steel);
+    for (k = 1; k < 5; k++) { sbox(x + k, y, SCOL.steelDark); sbox(x + k, y + 1, SCOL.steel); }
+    for (h = 5; h < 9; h++) { sbox(x + h, y, SCOL.handle); sbox(x + h, y + 1, SCOL.handle); }
+    if (mess) { sbox(x + 1, y + 1, SCOL.flesh); sbox(x + 2, y + 1, SCOL.juice); sbox(x + 3, y + 1, SCOL.juice); sbox(x + 3, y, SCOL.flesh); }
+  }
+
+  function splash(q, x) {
+    var up = Math.round(Math.sin(Math.PI * q) * 3);
+    sbox(x + 3, 8 - up, SCOL.juice);
+    sbox(x - 1, 9 - up, SCOL.juice);
+  }
+
+  /* one loop: four chops of one second each (the blade lands right on a clock second), the knife lifts, then a whole tomato again */
+  function runFrame(tt) {
+    var n = CUTS.length;
+    var i = Math.floor(tt / CUT_MS);
+    if (i >= n) {
+      var u = tt - CUT_MS * n;
+      tomatoCols(n, 1);
+      knifeV(cutX(n - 1), Math.round(KNIFE_DOWN - (KNIFE_DOWN - KNIFE_UP) * ease(Math.min(1, u / (TAIL_MS - 60)))), false);
+      return;
+    }
+    var p = (tt - i * CUT_MS) / CUT_MS;
+    var xPrev = cutX((i + n - 1) % n), xNow = cutX(i);
+    var yStart = i === 0 ? KNIFE_UP : KNIFE_DOWN;
+    var kx = xNow, ky = KNIFE_DOWN, c = i, cutP = 1, s, q;
+    if (p < 0.35) {
+      s = ease(p / 0.35);
+      kx = Math.round(xPrev + (xNow - xPrev) * s);
+      ky = Math.round(yStart + (KNIFE_UP - yStart) * s);
+    } else if (p < 0.55) {
+      ky = KNIFE_UP;
+    } else if (p < 0.70) {
+      q = (p - 0.55) / 0.15;
+      ky = Math.round(KNIFE_UP + (KNIFE_DOWN - KNIFE_UP) * q * q);
+    } else {
+      c = i + 1;
+      cutP = Math.min(1, (p - 0.70) / 0.15);
+    }
+    tomatoCols(c, cutP);
+    knifeV(kx, ky, false);
+    if (p >= 0.70 && p < 0.95) splash((p - 0.70) / 0.25, xNow);
+  }
+
+  function drawScene(mode, tt) {
+    sctx.clearRect(0, 0, sceneCv.width, sceneCv.height);
+    drawBoard();
+    if (mode === "running") {
+      runFrame(tt);
+    } else if (mode === "paused") {
+      /* two cuts made, the knife is back in its spot on the board with tomato juice on the blade */
+      tomatoCols(2, 1);
+      knifeH(SC.knife, 13, true);
+      sbox(SC.x0 + 11, 14, SCOL.juice);
+    } else if (mode === "done") {
+      tomatoCols(CUTS.length, 1);
+      knifeH(SC.knife, 13);
+    } else {
+      tomatoCols(0, 1);
+      knifeH(SC.knife, 13);
+    }
+  }
+
+  function sceneLayout() {
+    var cs = window.innerHeight < 720 ? 3 : 4;
+    var d = window.devicePixelRatio || 1;
+    var w = Math.round(SC.cols * cs * d), h = Math.round(SC.rows * cs * d);
+    if (cs === sCell && d === sDpr && sceneCv.width === w && sceneCv.height === h) return;
+    sCell = cs;
+    sDpr = d;
+    sS = cs * d;
+    sceneCv.style.width = SC.cols * cs + "px";
+    sceneCv.style.height = SC.rows * cs + "px";
+    sceneCv.width = w;
+    sceneCv.height = h;
+    syncScene();
+  }
+
+  /* animates only while the timer runs; every other state is a still picture */
+  function syncScene() {
+    if (state.phase === "running") {
+      if (!sceneTimer) {
+        /* the blade lands (70% into each chop) exactly on a wall-clock second, like the timer digits */
+        sceneStart = Math.ceil((Date.now() + 700) / 1000) * 1000 - 700;
+        sceneTimer = setInterval(function () {
+          var el = Date.now() - sceneStart;
+          drawScene("running", el < 0 ? 0 : el % CYCLE_MS);
+        }, 50);
+      }
+      return;
+    }
+    if (sceneTimer) { clearInterval(sceneTimer); sceneTimer = null; }
+    if (state.phase === "running") drawScene("running", CUT_MS * 2 + 400);
+    else drawScene(state.phase, 0);
+  }
+
+  var WD = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+  /* weekday, date and a live clock down to the second, e.g. MON 10/12 PM 3:18:06 */
+  var lastPill = "";
+  function updatePill() {
+    var now = new Date();
+    var h = now.getHours();
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    var text = WD[now.getDay()] + " " + pad2(now.getMonth() + 1) + "/" + pad2(now.getDate()) +
+      " " + (h >= 12 ? "PM" : "AM") + " " + h12 + ":" + pad2(now.getMinutes()) + ":" + pad2(now.getSeconds());
+    if (text !== lastPill) {
+      lastPill = text;
+      /* every digit gets the same width, so the pill does not wobble as the seconds change */
+      pillEl.innerHTML = text.replace(/\d/g, '<span class="d">$&</span>');
+    }
+  }
+  function secondLoop() {
+    updatePill();
+    tick();
+    setTimeout(secondLoop, 1000 - (Date.now() % 1000) + 8);
+  }
+
+  /* pixel symbols instead of words on the buttons and tabs */
+  function pxSvg(map, cell) {
+    var w = map[0].length, h = map.length, d = "";
+    for (var r = 0; r < h; r++) for (var c = 0; c < w; c++) if (map[r].charAt(c) === "X") d += "M" + c + " " + r + "h1v1h-1z";
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + w * cell + '" height="' + h * cell + '" viewBox="0 0 ' + w + " " + h + '" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><path d="' + d + '"/></svg>';
+  }
+  var ICON = {
+    play: pxSvg(["X....", "XX...", "XXX..", "XXXX.", "XXXXX", "XXXX.", "XXX..", "XX...", "X...."], 3),
+    pause: pxSvg(["XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX"], 3),
+    home: pxSvg(["....X....", "...XXX...", "..XXXXX..", ".XXXXXXX.", "XXXXXXXXX", ".XX...XX.", ".XX...XX.", ".XX...XX."], 4),
+    clock: pxSvg(["..XXXXX..", ".X.....X.", "X...X...X", "X...X...X", "X...XXX.X", "X.......X", "X.......X", ".X.....X.", "..XXXXX.."], 3),
+    sliders: pxSvg([".X..X..X.", ".X..X..X.", "XXX.X..X.", ".X.XXX.X.", ".X..X.XXX", ".X..X..X.", ".X..X..X."], 3)
+  };
+  var lastIco = "";
+
+  function render() {
+    var secs = Math.ceil(state.remainMs / 1000);
+    var label = pad2(Math.floor(secs / 60)) + ":" + pad2(secs % 60);
+    updatePill();
+    renderCount();
+    syncScene();
+    srTime.textContent = label;
+
+    var msg = "", startLabel = "시작";
+    if (state.phase === "idle") { msg = settings.minutes + "분 집중, 준비됐어요"; startLabel = "시작"; }
+    if (state.phase === "running") { msg = "집중하는 중"; startLabel = "일시정지"; }
+    if (state.phase === "paused") { msg = "잠깐 멈췄어요"; startLabel = "계속"; }
+    if (state.phase === "done") { msg = "다 채웠어요! 수고했어요"; startLabel = "한 번 더"; }
+    statusEl.textContent = msg;
+    var ico = state.phase === "running" ? ICON.pause : ICON.play;
+    if (ico !== lastIco) { btnStart.innerHTML = ico; lastIco = ico; }
+    btnStart.setAttribute("aria-label", startLabel);
+    btnReset.disabled = state.phase === "idle";
+    document.title = state.phase === "running" || state.phase === "paused" ? label + " · " + BASE_TITLE : BASE_TITLE;
+    draw();
+  }
+
+  btnStart.addEventListener("click", function () {
+    if (state.phase === "running") pause(); else start();
+  });
+  btnReset.innerHTML = ICON.home;
+  btnReset.setAttribute("aria-label", "처음으로");
+  btnReset.addEventListener("click", reset);
+  document.addEventListener("keydown", function (e) {
+    if (e.code !== "Space") return;
+    var t = e.target && e.target.tagName;
+    if (t === "BUTTON" || t === "INPUT") return;
+    e.preventDefault();
+    if (state.phase === "running") pause(); else start();
+  });
+
+  /* ---------- tabs ---------- */
+  var tabTimer = $("tab-timer"), tabSettings = $("tab-settings");
+  var panelTimer = $("panel-timer"), panelSettings = $("panel-settings");
+  function showTab(name) {
+    var isTimer = name === "timer";
+    panelTimer.hidden = !isTimer;
+    panelSettings.hidden = isTimer;
+    tabTimer.setAttribute("aria-selected", isTimer ? "true" : "false");
+    tabSettings.setAttribute("aria-selected", isTimer ? "false" : "true");
+    if (isTimer) requestAnimationFrame(layout);
+  }
+  tabTimer.innerHTML = ICON.clock;
+  tabSettings.innerHTML = ICON.sliders;
+  tabTimer.addEventListener("click", function () { showTab("timer"); });
+  tabSettings.addEventListener("click", function () { showTab("settings"); });
+
+  /* ---------- settings ---------- */
+  var chipsEl = $("chips"), swWake = $("swWake"), swSound = $("swSound"), wakeHint = $("wakeHint");
+
+  DURATIONS.forEach(function (m) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.id = "chip-" + m;
+    b.setAttribute("role", "radio");
+    b.textContent = m + "분";
+    b.addEventListener("click", function () {
+      settings.minutes = m;
+      store.set("ptm.minutes", m);
+      reset();
+      renderSettings();
+    });
+    chipsEl.appendChild(b);
+  });
+
+  var pileChipsEl = $("pileChips");
+  [["today", "오늘 누적"], ["total", "전체 누적"]].forEach(function (o) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.id = "pile-" + o[0];
+    b.setAttribute("role", "radio");
+    b.textContent = o[1];
+    b.addEventListener("click", function () {
+      if (settings.pile === o[0]) return;
+      settings.pile = o[0];
+      store.set("ptm.pile", o[0]);
+      shownDone = -1; /* drop the pile again for the other total */
+      renderCount();
+      renderSettings();
+    });
+    pileChipsEl.appendChild(b);
+  });
+
+  function renderSettings() {
+    ["today", "total"].forEach(function (k) {
+      $("pile-" + k).setAttribute("aria-checked", settings.pile === k ? "true" : "false");
+    });
+    DURATIONS.forEach(function (m) {
+      $("chip-" + m).setAttribute("aria-checked", settings.minutes === m ? "true" : "false");
+    });
+    swWake.setAttribute("aria-checked", settings.wake ? "true" : "false");
+    swSound.setAttribute("aria-checked", settings.sound ? "true" : "false");
+    wakeHint.textContent = wakeSupported
+      ? "타이머가 돌아가는 동안에만 화면이 꺼지지 않아요."
+      : "이 브라우저는 화면 켜 두기를 지원하지 않아요. 아이폰은 iOS 16.4 이상에서 쓸 수 있어요.";
+  }
+
+  swWake.addEventListener("click", function () {
+    settings.wake = !settings.wake;
+    store.set("ptm.wake", settings.wake);
+    if (!settings.wake) releaseWake();
+    else if (state.phase === "running") acquireWake();
+    renderSettings();
+  });
+  swSound.addEventListener("click", function () {
+    settings.sound = !settings.sound;
+    store.set("ptm.sound", settings.sound);
+    if (settings.sound) { ensureAudio(); beep(); }
+    renderSettings();
+  });
+
+  /* ---------- boot ---------- */
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(layout).observe(stage);
+  } else {
+    window.addEventListener("resize", layout);
+  }
+  buildMini();
+  buildLegend();
+  renderSettings();
+  render();
+  secondLoop();
+  layout();
+})();
+</script>
+</body>
+</html>
