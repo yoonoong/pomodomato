@@ -77,6 +77,7 @@ body {
 }
 button { font-family: inherit; }
 :focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
+[hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 #pile { position: fixed; left: 0; top: 0; z-index: 0; pointer-events: none; image-rendering: pixelated; }
@@ -174,22 +175,27 @@ button { font-family: inherit; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #1b0605; }
 
 /* settings tab */
-.settings { overflow-y: auto; }
+.settings { overflow-y: auto; gap: 10px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { gap: 8px; justify-content: space-between; align-items: flex-start; font-size: 1.05rem; }
+.tile .chips { width: 100%; }
+.tile .chips.two { gap: 6px; }
+.tile .chip { min-height: 34px; font-size: 0.95rem; padding: 0; }
 .group {
   background: var(--panel);
   border: 2px solid var(--line);
-  padding: 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 .group h2 { margin: 0; font-size: 1.1rem; font-weight: 400; }
 .hint { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
 .chips.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .chip {
-  min-height: 52px;
-  font-size: 1.15rem;
+  min-height: 40px;
+  font-size: 1.1rem;
   color: var(--ink);
   background: var(--bg);
   border: 2px solid var(--line);
@@ -262,21 +268,23 @@ button { font-family: inherit; }
       <h2>집중 시간</h2>
       <div class="chips" role="radiogroup" aria-label="집중 시간" id="chips"></div>
     </div>
-    <div class="group">
-      <div class="row">
+    <div class="grid2">
+      <div class="group tile">
         <span id="lblWake">화면 켜 두기</span>
         <button type="button" class="switch" id="swWake" role="switch" aria-checked="true" aria-labelledby="lblWake"></button>
       </div>
-    </div>
-    <div class="group">
-      <div class="row">
+      <div class="group tile">
         <span id="lblSound">끝났을 때 소리</span>
         <button type="button" class="switch" id="swSound" role="switch" aria-checked="true" aria-labelledby="lblSound"></button>
       </div>
-    </div>
-    <div class="group">
-      <h2>떨어지는 토마토</h2>
-      <div class="chips two" role="radiogroup" aria-label="떨어지는 토마토 기준" id="pileChips"></div>
+      <div class="group tile">
+        <span id="lblTilt">토마토 움직임</span>
+        <button type="button" class="switch" id="swTilt" role="switch" aria-checked="true" aria-labelledby="lblTilt"></button>
+      </div>
+      <div class="group tile">
+        <span>떨어지는 토마토</span>
+        <div class="chips two" role="radiogroup" aria-label="떨어지는 토마토 기준" id="pileChips"></div>
+      </div>
     </div>
     <div class="group">
       <h2>얻은 토마토</h2>
@@ -354,6 +362,7 @@ button { font-family: inherit; }
     minutes: store.get("ptm.minutes", 25),
     wake: store.get("ptm.wake", true),
     sound: store.get("ptm.sound", true),
+    tilt: store.get("ptm.tilt", true) !== false,
     pile: store.get("ptm.pile", "today") === "total" ? "total" : "today"
   };
   if (DURATIONS.indexOf(settings.minutes) < 0) settings.minutes = 25;
@@ -574,19 +583,31 @@ button { font-family: inherit; }
   }
 
   /* ---------- canvas ---------- */
-  var cell = 8, S = 8, gap = 1, dpr = 1;
+  var cell = 8, cellT = 12, S = 8, SD = 8, gap = 1, gapD = 1, dpr = 1, offX = 0, offY = 0;
 
+  /* the tomato is 1.2x its old size, the dot-matrix time 1.2x smaller; the tomato cell is ~1.44x the digit cell */
   function layout() {
     sceneLayout();
     var r = stage.getBoundingClientRect();
-    cell = Math.max(4, Math.floor(Math.min(r.width / COLS, r.height / ROWS)));
     dpr = window.devicePixelRatio || 1;
-    S = cell * dpr;
+    var best = 3, c, t;
+    for (c = 16; c >= 3; c--) {
+      t = Math.round(c * 1.44);
+      if (t * COLS <= r.width && t * TH + 19 * c <= r.height) { best = c; break; }
+    }
+    cell = best;
+    cellT = Math.round(cell * 1.44);
+    S = cellT * dpr;
+    SD = cell * dpr;
     gap = Math.max(1, Math.round(S * 0.07));
-    cv.style.width = cell * COLS + "px";
-    cv.style.height = cell * ROWS + "px";
-    cv.width = Math.round(cell * COLS * dpr);
-    cv.height = Math.round(cell * ROWS * dpr);
+    gapD = Math.max(1, Math.round(SD * 0.07));
+    var W = cellT * COLS, H = cellT * TH + 19 * cell;
+    cv.style.width = W + "px";
+    cv.style.height = H + "px";
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    offX = Math.round((W - 11 * cell) / 2 * dpr);
+    offY = Math.round(cellT * TH * dpr + 2 * SD);
     draw();
   }
 
@@ -595,20 +616,26 @@ button { font-family: inherit; }
     var x2 = Math.round((cx + 1) * S), y2 = Math.round((cy + 1) * S);
     ctx.fillRect(x1, y1, x2 - x1 - gap, y2 - y1 - gap);
   }
+  /* digit cells: x, y counted from the top-left corner of the 11 x 17 time block */
+  function boxD(cx, cy) {
+    var x1 = Math.round(offX + cx * SD), y1 = Math.round(offY + cy * SD);
+    var x2 = Math.round(offX + (cx + 1) * SD), y2 = Math.round(offY + (cy + 1) * SD);
+    ctx.fillRect(x1, y1, x2 - x1 - gapD, y2 - y1 - gapD);
+  }
 
   function drawDigit(ch, x, y) {
     var g = FONT[ch];
     if (!g) return;
     for (var r = 0; r < 7; r++) {
       for (var c = 0; c < 5; c++) {
-        if (g[r].charAt(c) === "1") box(x + c, y + r);
+        if (g[r].charAt(c) === "1") boxD(x + c, y + r);
       }
     }
   }
 
   function drawPair(text, y) {
-    drawDigit(text.charAt(0), DX, y);
-    drawDigit(text.charAt(1), DX + 6, y);
+    drawDigit(text.charAt(0), 0, y);
+    drawDigit(text.charAt(1), 6, y);
   }
 
   function progress() {
@@ -628,10 +655,10 @@ button { font-family: inherit; }
     var secs = Math.ceil(state.remainMs / 1000);
     var mm = pad2(Math.floor(secs / 60)), ss = pad2(secs % 60);
     ctx.fillStyle = COL.digit;
-    drawPair(mm, TH + 2);
-    box(DX + 2, TH + 10);
-    box(DX + 8, TH + 10);
-    drawPair(ss, TH + 12);
+    drawPair(mm, 0);
+    boxD(2, 8);
+    boxD(8, 8);
+    drawPair(ss, 10);
   }
 
   /* ---------- text + buttons ---------- */
@@ -797,17 +824,109 @@ button { font-family: inherit; }
     P.sprS = mapCanvas(SLICE, SLICE_PAL, Math.max(1, Math.round(2 * d)));
     P.sprC = mapCanvas(GIANT, GIANT_PAL, Math.max(1, Math.round(4 * d)));
     P.bodies.forEach(function (b) {
+      if (!b.in) return;
       b.x = Math.min(Math.max(b.x, b.r), w - b.r);
-      b.y = Math.min(b.y, h - b.r);
+      b.y = Math.min(Math.max(b.y, b.r), h - b.r);
     });
     pileWake();
   }
 
+  /* gravity: straight down by default; follows the phone's tilt, or rocks gently like a boat when there is no sensor */
+  var GV = { x: 0, y: 1, rx: 0, ry: 1, at: 0, sign: null, beta: null, listening: false, asked: false };
+  function isIOS() {
+    var ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  }
+  function screenAngle() {
+    var a = 0;
+    if (typeof screen !== "undefined" && screen.orientation && typeof screen.orientation.angle === "number") a = screen.orientation.angle;
+    else if (typeof window.orientation === "number") a = window.orientation;
+    return ((a % 360) + 360) % 360;
+  }
+  function onOri(e) { if (typeof e.beta === "number") GV.beta = e.beta; }
+  function onMotion(e) {
+    var a = e.accelerationIncludingGravity;
+    if (!a || typeof a.x !== "number" || typeof a.y !== "number") return;
+    var sx = a.x / 9.81, sy = a.y / 9.81;
+    /* Android reports +g up, iOS the reverse: compare with the device's own beta angle once it is clear enough */
+    if (GV.beta !== null) {
+      var sb = Math.sin(GV.beta * Math.PI / 180);
+      if (Math.abs(sb) > 0.7 && Math.abs(sy) > 0.6) GV.sign = sy * sb > 0 ? 1 : -1;
+    }
+    var sg = GV.sign !== null ? GV.sign : (isIOS() ? -1 : 1);
+    var gx = -sx * sg, gy = sy * sg, ang = screenAngle(), rx, ry;
+    if (ang === 90) { rx = gy; ry = gx; }
+    else if (ang === 180) { rx = -gx; ry = -gy; }
+    else if (ang === 270) { rx = -gy; ry = -gx; }
+    else { rx = gx; ry = gy; }
+    var m = Math.sqrt(rx * rx + ry * ry);
+    if (m < 0.25) { /* lying flat: ease back to "down" */
+      var k = m / 0.25;
+      rx = k * (m > 0.001 ? rx / m : 0);
+      ry = k * (m > 0.001 ? ry / m : 1) + (1 - k);
+    } else { rx /= m; ry /= m; }
+    GV.rx = rx; GV.ry = ry;
+    GV.at = performance.now();
+  }
+  function motionListen() {
+    if (GV.listening) return;
+    GV.listening = true;
+    window.addEventListener("devicemotion", onMotion);
+    window.addEventListener("deviceorientation", onOri);
+  }
+  /* iOS only hands out the sensor after a tap, so this runs from a click */
+  function askMotion() {
+    if (typeof DeviceMotionEvent === "undefined") return;
+    if (typeof DeviceMotionEvent.requestPermission === "function") {
+      if (GV.asked) return;
+      GV.asked = true;
+      try {
+        DeviceMotionEvent.requestPermission().then(function (r) { if (r === "granted") motionListen(); }).catch(function () { GV.asked = false; });
+      } catch (e) { GV.asked = false; }
+    } else {
+      motionListen();
+    }
+  }
+  function gravTarget() {
+    if (!settings.tilt) return { x: 0, y: 1 };
+    var now = performance.now();
+    if (now - GV.at < 700) return { x: GV.rx, y: GV.ry };
+    /* no sensor: a slow, never-repeating roll to the left and right */
+    var t = now / 1000;
+    var sx = 0.26 * Math.sin(t * 0.55) + 0.12 * Math.sin(t * 1.37 + 1.3) + 0.05 * Math.sin(t * 2.9 + 0.4);
+    var n = Math.sqrt(1 + sx * sx);
+    return { x: sx / n, y: 1 / n };
+  }
+  function gravStep(dt) {
+    var g = gravTarget(), k = 1 - Math.exp(-dt * 8);
+    GV.x += (g.x - GV.x) * k;
+    GV.y += (g.y - GV.y) * k;
+    var m = Math.sqrt(GV.x * GV.x + GV.y * GV.y) || 1;
+    GV.x /= m; GV.y /= m;
+  }
+  setInterval(function () {
+    if (document.hidden || !P.sprT || !P.bodies.length) return;
+    var g = gravTarget();
+    if (Math.abs(g.x - GV.x) + Math.abs(g.y - GV.y) > 0.012) pileWake();
+  }, 100);
+  motionListen();
+  document.addEventListener("click", function () { if (settings.tilt) askMotion(); }, true);
+
   function pileSpawn(kind, x, y, vy) {
     var r = kind === "t" ? R_T : kind === "c" ? R_C : R_S;
-    if (x === undefined) x = r + Math.random() * Math.max(1, P.W - 2 * r);
+    var inside = x !== undefined;
+    if (!inside) {
+      /* enters from the side the gravity comes from */
+      if (Math.abs(GV.y) >= Math.abs(GV.x)) {
+        x = r + Math.random() * Math.max(1, P.W - 2 * r);
+        y = GV.y >= 0 ? -r - 2 : P.H + r + 2;
+      } else {
+        y = r + Math.random() * Math.max(1, P.H - 2 * r);
+        x = GV.x > 0 ? -r - 2 : P.W + r + 2;
+      }
+    }
     if (y === undefined) y = -r - 2;
-    P.bodies.push({ kind: kind, r: r, m: r * r, x: x, y: y, vx: (Math.random() - 0.5) * 60, vy: vy || 0 });
+    P.bodies.push({ kind: kind, r: r, m: r * r, x: x, y: y, vx: (Math.random() - 0.5) * 60, vy: vy || 0, ang: 0, w: 0, in: inside });
     pileWake();
   }
 
@@ -853,20 +972,41 @@ button { font-family: inherit; }
     }
   }
 
+  /* a wall pushes back; a rolling body spins up instead of just sliding */
+  function wallHit(a, nx, ny, pen) {
+    a.x -= nx * pen; a.y -= ny * pen;
+    var vn = a.vx * nx + a.vy * ny;
+    if (vn > 0) {
+      var rb = vn > 80 ? (1 + BOUNCE) * vn : vn;
+      a.vx -= nx * rb; a.vy -= ny * rb;
+    }
+    var tx = -ny, ty = nx;
+    var s = a.vx * tx + a.vy * ty + a.w * a.r;
+    a.w -= 0.35 * s / a.r;
+    a.vx -= tx * 0.12 * s; a.vy -= ty * 0.12 * s;
+    var fr = Math.abs(GV.x * tx + GV.y * ty) < 0.06 ? 0.93 : 0.992;
+    var vt = a.vx * tx + a.vy * ty;
+    a.vx -= tx * vt * (1 - fr); a.vy -= ty * vt * (1 - fr);
+  }
+
   function pileStep(dt) {
-    var bs = P.bodies, i, j, a, c, it;
+    var bs = P.bodies, i, j, a, c, it, TWO_PI = Math.PI * 2;
     for (i = 0; i < bs.length; i++) {
       a = bs[i];
-      a.vy += GRAV * dt;
+      a.vx += GV.x * GRAV * dt;
+      a.vy += GV.y * GRAV * dt;
       a.x += a.vx * dt;
       a.y += a.vy * dt;
-      if (a.x < a.r) { a.x = a.r; a.vx = Math.abs(a.vx) * BOUNCE; }
-      if (a.x > P.W - a.r) { a.x = P.W - a.r; a.vx = -Math.abs(a.vx) * BOUNCE; }
-      if (a.y > P.H - a.r) {
-        a.y = P.H - a.r;
-        a.vy = a.vy > 80 ? -a.vy * BOUNCE : 0;
-        a.vx *= 0.9;
+      a.ang = (a.ang + a.w * dt) % TWO_PI;
+      a.w *= 0.998;
+      if (!a.in) {
+        if (a.x >= a.r && a.x <= P.W - a.r && a.y >= a.r && a.y <= P.H - a.r) a.in = true;
+        continue;
       }
+      if (a.x < a.r) wallHit(a, -1, 0, a.r - a.x);
+      if (a.x > P.W - a.r) wallHit(a, 1, 0, a.x - (P.W - a.r));
+      if (a.y < a.r) wallHit(a, 0, -1, a.r - a.y);
+      if (a.y > P.H - a.r) wallHit(a, 0, 1, a.y - (P.H - a.r));
     }
     for (it = 0; it < 3; it++) {
       for (i = 0; i < bs.length; i++) {
@@ -886,6 +1026,8 @@ button { font-family: inherit; }
             c.vx -= jn * nx / c.m; c.vy -= jn * ny / c.m;
             a.vx *= 0.995; c.vx *= 0.995;
           }
+          var sl = (a.vx - c.vx) * -ny + (a.vy - c.vy) * nx + a.w * a.r + c.w * c.r;
+          a.w -= 0.12 * sl / a.r; c.w -= 0.12 * sl / c.r;
         }
       }
     }
@@ -899,7 +1041,17 @@ button { font-family: inherit; }
     P.bodies.forEach(function (b) {
       var spr = b.kind === "t" ? P.sprT : b.kind === "c" ? P.sprC : P.sprS;
       if (!spr) return;
-      pctx.drawImage(spr, Math.round(b.x * d - spr.width / 2), Math.round((b.y + b.r) * d - spr.height));
+      var off = b.r * d - spr.height / 2, sn = Math.sin(b.ang), cs = Math.cos(b.ang);
+      var cx = b.x * d - off * sn, cy = b.y * d + off * cs;
+      if (Math.abs(sn) < 0.02 && cs > 0) {
+        pctx.drawImage(spr, Math.round(cx - spr.width / 2), Math.round(cy - spr.height / 2));
+      } else {
+        pctx.save();
+        pctx.translate(Math.round(cx), Math.round(cy));
+        pctx.rotate(b.ang);
+        pctx.drawImage(spr, -Math.round(spr.width / 2), -Math.round(spr.height / 2));
+        pctx.restore();
+      }
     });
     pctx.globalAlpha = 1;
   }
@@ -907,17 +1059,20 @@ button { font-family: inherit; }
   function pileFrame(t) {
     var dt = Math.min(0.033, Math.max(0.001, (t - P.last) / 1000));
     P.last = t;
+    gravStep(dt);
     pileStep(dt / 2);
     pileStep(dt / 2);
     var fast = 0;
-    P.bodies.forEach(function (b) { fast = Math.max(fast, Math.abs(b.vx) + Math.abs(b.vy)); });
+    P.bodies.forEach(function (b) { fast = Math.max(fast, Math.abs(b.vx) + Math.abs(b.vy) + Math.abs(b.w) * b.r * 0.5); });
     P.calm = fast < 12 ? P.calm + 1 : 0;
     pileDraw();
-    if (P.calm < 45 || P.pending > 0) {
+    var g = gravTarget();
+    var moving = P.bodies.length > 0 && Math.abs(g.x - GV.x) + Math.abs(g.y - GV.y) > 0.012;
+    if (P.calm < 45 || P.pending > 0 || moving) {
       P.raf = requestAnimationFrame(pileFrame);
     } else {
       P.raf = 0;
-      P.bodies.forEach(function (b) { b.vx = 0; b.vy = 0; });
+      P.bodies.forEach(function (b) { b.vx = 0; b.vy = 0; b.w = 0; });
     }
   }
   function pileWake() {
@@ -1313,7 +1468,7 @@ button { font-family: inherit; }
   tabSettings.addEventListener("click", function () { showTab("settings"); });
 
   /* ---------- settings ---------- */
-  var chipsEl = $("chips"), swWake = $("swWake"), swSound = $("swSound");
+  var chipsEl = $("chips"), swWake = $("swWake"), swSound = $("swSound"), swTilt = $("swTilt");
 
   DURATIONS.forEach(function (m) {
     var b = document.createElement("button");
@@ -1359,6 +1514,7 @@ button { font-family: inherit; }
     });
     swWake.setAttribute("aria-checked", settings.wake ? "true" : "false");
     swSound.setAttribute("aria-checked", settings.sound ? "true" : "false");
+    swTilt.setAttribute("aria-checked", settings.tilt ? "true" : "false");
   }
 
   swWake.addEventListener("click", function () {
@@ -1366,6 +1522,13 @@ button { font-family: inherit; }
     store.set("ptm.wake", settings.wake);
     if (!settings.wake) releaseWake();
     else if (state.phase === "running") acquireWake();
+    renderSettings();
+  });
+  swTilt.addEventListener("click", function () {
+    settings.tilt = !settings.tilt;
+    store.set("ptm.tilt", settings.tilt);
+    if (settings.tilt) askMotion();
+    pileWake();
     renderSettings();
   });
   swSound.addEventListener("click", function () {
