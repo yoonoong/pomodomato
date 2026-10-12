@@ -144,6 +144,16 @@ button { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { .mini.new { animation: none; } }
 
 .controls { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; }
+.brk { display: none; font-family: var(--font-pixel); font-size: 1.3rem; gap: 6px; padding: 0 6px; }
+.brk svg { flex: none; }
+/* after a focus round: break choices (5 / 10 min) next to the play button */
+.controls.ask { grid-template-columns: 1fr 1fr 1fr; }
+.controls:not(.ask) .brk { display: none; }
+.controls.ask .brk { display: flex; }
+.controls.ask #brk5 { order: 1; }
+.controls.ask #brk10 { order: 2; }
+.controls.ask #btnStart { order: 3; }
+.controls.ask #btnReset { display: none; }
 .btn {
   min-height: 54px;
   padding: 0 16px;
@@ -189,7 +199,11 @@ button { font-family: inherit; }
 .chip[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #1b0605; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .row span { font-size: 1.05rem; }
-.row .total { color: var(--ink); font-size: 1.2rem; }
+.row .total { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px 6px; color: var(--ink); font-family: var(--font-pixel); font-size: 1.35rem; }
+.total .part { display: inline-flex; align-items: center; gap: 3px; }
+.total .mini { width: 18px; height: 16px; }
+.total .mini.slice { width: 17px; height: 15px; }
+.total .mini.giant { width: 18px; height: 16px; }
 .switch {
   position: relative;
   flex: none;
@@ -235,9 +249,11 @@ button { font-family: inherit; }
         <p id="status" class="sr-only" aria-live="polite">25분 집중, 준비됐어요</p>
       </div>
     </div>
-    <div class="controls">
+    <div class="controls" id="controls">
       <button type="button" class="btn primary" id="btnStart"></button>
       <button type="button" class="btn" id="btnReset"></button>
+      <button type="button" class="btn brk" id="brk5"></button>
+      <button type="button" class="btn brk" id="brk10"></button>
     </div>
   </section>
 
@@ -245,14 +261,12 @@ button { font-family: inherit; }
     <div class="group">
       <h2>집중 시간</h2>
       <div class="chips" role="radiogroup" aria-label="집중 시간" id="chips"></div>
-      <p class="hint">시간을 바꾸면 타이머가 처음으로 돌아가요.</p>
     </div>
     <div class="group">
       <div class="row">
         <span id="lblWake">화면 켜 두기</span>
         <button type="button" class="switch" id="swWake" role="switch" aria-checked="true" aria-labelledby="lblWake"></button>
       </div>
-      <p class="hint" id="wakeHint"></p>
     </div>
     <div class="group">
       <div class="row">
@@ -263,12 +277,11 @@ button { font-family: inherit; }
     <div class="group">
       <h2>떨어지는 토마토</h2>
       <div class="chips two" role="radiogroup" aria-label="떨어지는 토마토 기준" id="pileChips"></div>
-      <p class="hint">타이머 화면 뒤에 쌓이는 토마토를 오늘 누적 시간 또는 전체 누적 시간에 맞춰 보여줘요.</p>
     </div>
     <div class="group">
-      <h2>쌓인 집중 시간</h2>
-      <div class="row"><span>오늘</span><span class="total" id="totToday">0분</span></div>
-      <div class="row"><span>전체</span><span class="total" id="totAll">0분</span></div>
+      <h2>얻은 토마토</h2>
+      <div class="row"><span>오늘</span><span class="total" id="totToday"></span></div>
+      <div class="row"><span>전체</span><span class="total" id="totAll"></span></div>
       <div class="count" id="count" role="img" aria-label="오늘 집중 0분">
         <span class="legend" id="legend"></span>
       </div>
@@ -409,7 +422,7 @@ button { font-family: inherit; }
   try { reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
 
   /* ---------- timer state ---------- */
-  var state = { phase: "idle", totalMs: settings.minutes * 60000, remainMs: settings.minutes * 60000, endAt: 0, startRemain: 0, credited: 0 };
+  var state = { phase: "idle", totalMs: settings.minutes * 60000, remainMs: settings.minutes * 60000, endAt: 0, startRemain: 0, credited: 0, mode: "focus" };
 
   /* focus time is banked in 5-minute steps while the timer runs, so a slice drops as each 5 minutes pass */
   function credit(remainMs) {
@@ -427,7 +440,7 @@ button { font-family: inherit; }
     var remain = Math.min(state.endAt - Date.now(), state.startRemain);
     if (remain <= 0) { finish(); return; }
     state.remainMs = remain;
-    credit(remain);
+    if (state.mode === "focus") credit(remain);
     render();
   }
 
@@ -458,6 +471,7 @@ button { font-family: inherit; }
     stopBlink();
     releaseWake();
     state.phase = "idle";
+    state.mode = "focus";
     state.totalMs = settings.minutes * 60000;
     state.remainMs = state.totalMs;
     state.credited = 0;
@@ -465,7 +479,26 @@ button { font-family: inherit; }
     render();
   }
 
+  /* a break (5 or 10 min) after a focus round: the tomato slowly loses its colour again */
+  function startBreak(min) {
+    stopBlink();
+    state.mode = "break";
+    state.phase = "idle";
+    state.totalMs = min * 60000;
+    state.remainMs = state.totalMs;
+    state.credited = 0;
+    shuffleOrder();
+    start();
+  }
+
   function finish() {
+    if (state.mode === "break") { /* break over: back to a fresh grey tomato, ready for the next round */
+      stopTick();
+      releaseWake();
+      beep();
+      reset();
+      return;
+    }
     stopTick();
     releaseWake();
     state.phase = "done";
@@ -587,7 +620,8 @@ button { font-family: inherit; }
     ctx.clearRect(0, 0, cv.width, cv.height);
     var filled = Math.floor(progress() * TOTAL + 1e-6);
     cells.forEach(function (c) {
-      ctx.fillStyle = c.o < filled ? COL.on[c.k] : COL.off[c.k];
+      var on = state.mode === "break" ? c.o >= filled : c.o < filled;
+      ctx.fillStyle = on ? COL.on[c.k] : COL.off[c.k];
       box(c.c, c.r);
     });
     if (state.phase === "done" && !blinkOn) return;
@@ -894,11 +928,31 @@ button { font-family: inherit; }
   }
   window.addEventListener("resize", pileLayout);
 
+  /* what the minutes add up to, counted separately: slices x n + tomatoes x n + giant tomatoes x n */
+  function showHaul(el, m) {
+    var key = String(m);
+    if (el.getAttribute("data-m") === key) return;
+    el.setAttribute("data-m", key);
+    el.textContent = "";
+    var parts = [[sliceUrl, "slice", Math.floor((m % 25) / 5)], [miniUrl, "", Math.floor((m % 500) / 25)], [giantUrl, "giant", Math.floor(m / 500)]];
+    parts.forEach(function (p, i) {
+      if (i) { var plus = document.createElement("span"); plus.className = "op"; plus.textContent = "+"; el.appendChild(plus); }
+      var part = document.createElement("span");
+      part.className = "part";
+      part.appendChild(icon(p[0], p[1]));
+      var n = document.createElement("span");
+      n.className = "n";
+      n.textContent = "×" + p[2];
+      part.appendChild(n);
+      el.appendChild(part);
+    });
+  }
+
   function pileMinutes() { return settings.pile === "total" ? getTotal() : getDone(); }
 
   function renderCount() {
-    $("totToday").textContent = fmtMin(getDone());
-    $("totAll").textContent = fmtMin(getTotal());
+    showHaul($("totToday"), getDone());
+    showHaul($("totAll"), getTotal());
     var m = pileMinutes();
     if (m === shownDone) return;
     var prev = shownDone;
@@ -1015,8 +1069,76 @@ button { font-family: inherit; }
     if (p >= 0.70 && p < 0.95) splash((p - 0.70) / 0.25, xNow);
   }
 
+  /* ---- break scene: a round magic pot of tomato soup, steam and a ladle (5 frames, one per second) ---- */
+  var PC = { out: "#1f2a33", dark: "#34414d", mid: "#4d5c6b", light: "#6f8092", rimHi: "#9aa9b8", rimLo: "#5a6877",
+    soup: "#c9302a", soupMid: "#e24a3a", soupHi: "#f58c6a", steam: "#dfe3e8", steam2: "#9ea6af", fire: "#f7c948", fire2: "#ee8a2b" };
+  function drawPot(f) {
+    var x, y, dx, dy, s;
+    /* flames under the belly */
+    var fl = [[11, 3], [15, 4], [19, 3], [23, 2]];
+    fl.forEach(function (q, i) {
+      var h = 1 + ((i + f) % 2);
+      for (var k = 0; k < h; k++) sbox(q[0] + (k % 2 ? 0 : 0), 16 - k, k === 0 ? PC.fire2 : PC.fire);
+      sbox(q[0] + 1, 16, PC.fire2);
+      if (h > 1) sbox(q[0], 14, PC.fire);
+    });
+    /* handles */
+    [[5, 6], [26, 6]].forEach(function (h) {
+      for (var yy = 7; yy <= 9; yy++) { sbox(h[0], yy, yy === 9 ? PC.out : PC.mid); sbox(h[0] + 1, yy, PC.dark); }
+      sbox(h[0], 6, PC.out); sbox(h[0] + 1, 6, PC.out);
+    });
+    /* round belly */
+    var cx = 16.5, cy = 9.8, a = 9.8, b = 5.4;
+    for (y = 5; y <= 14; y++) for (x = 6; x <= 27; x++) {
+      dx = (x + 0.5 - cx) / a; dy = (y + 0.5 - cy) / b;
+      var d = dx * dx + dy * dy;
+      if (d > 1) continue;
+      var edge = d > 0.72;
+      s = -0.7 * dx - 0.55 * dy;
+      var col = s > 0.45 ? PC.light : s > 0 ? PC.mid : s > -0.45 ? PC.dark : PC.dark;
+      if (edge && (dy > 0.2 || Math.abs(dx) > 0.82)) col = PC.out;
+      sbox(x, y, col);
+    }
+    /* rim and soup */
+    var rx = 16.5, ry = 5.6, ra = 8.4, rb = 2.5;
+    for (y = 2; y <= 8; y++) for (x = 7; x <= 26; x++) {
+      dx = (x + 0.5 - rx) / ra; dy = (y + 0.5 - ry) / rb;
+      var dd = dx * dx + dy * dy;
+      if (dd > 1) continue;
+      if (dd > 0.62) sbox(x, y, dy < 0 ? PC.rimHi : PC.rimLo);
+      else {
+        var sx = (x + 0.5 - rx) / 6.6, sy = (y + 0.5 - ry) / 1.5;
+        if (sx * sx + sy * sy > 1) { sbox(x, y, PC.out); continue; }
+        var ang = Math.atan2(sy, sx) * 180 / Math.PI;
+        var rot = (f * 72 + 30) % 360;
+        var diff = Math.abs(((ang - rot + 540) % 360) - 180);
+        sbox(x, y, diff < 38 ? PC.soupHi : diff < 90 ? PC.soupMid : PC.soup);
+      }
+    }
+    /* bubbles */
+    [[13, 5, 0], [19, 6, 2], [16, 4, 4]].forEach(function (bb) {
+      if ((f + bb[2]) % 5 < 2) sbox(bb[0], bb[1], PC.soupHi);
+    });
+    /* steam wisps */
+    [[11, 0], [16, 1], [21, 2]].forEach(function (w, i) {
+      for (var yy = 0; yy < 3; yy++) {
+        var sw = Math.round(Math.sin((f + i * 1.7 + yy * 0.9) * 1.26));
+        var xx = w[0] + sw;
+        if (yy === 2 && (f + i) % 2) continue;
+        sbox(xx, 2 - yy, yy === 0 ? PC.steam : yy === 1 ? PC.steam : PC.steam2);
+      }
+    });
+    /* ladle going round the soup */
+    var ang2 = (f * 72 + 30) * Math.PI / 180;
+    var lx = Math.round(rx - 0.5 + 4.6 * Math.cos(ang2)), ly = Math.round(ry - 0.5 + 1.0 * Math.sin(ang2));
+    for (var i = 1; i <= 7; i++) sbox(lx + Math.round(i * 1.0), ly - i, SCOL.handle);
+    sbox(lx, ly, SCOL.steelDark); sbox(lx + 1, ly, SCOL.steel); sbox(lx - 1, ly, SCOL.steel);
+    sbox(lx, ly - 1, SCOL.steel);
+  }
+
   function drawScene(mode, tt) {
     sctx.clearRect(0, 0, sceneCv.width, sceneCv.height);
+    if (mode === "pot") { drawPot(tt); return; }
     drawBoard();
     if (mode === "running") {
       runFrame(tt);
@@ -1050,20 +1172,39 @@ button { font-family: inherit; }
   }
 
   /* animates only while the timer runs; every other state is a still picture */
+  var sceneKind = "", lastPotFrame = -1;
   function syncScene() {
+    var kind = state.mode === "break" ? "pot" : "knife";
+    if (kind !== sceneKind) {
+      sceneKind = kind;
+      if (sceneTimer) { clearInterval(sceneTimer); sceneTimer = null; }
+      lastPotFrame = -1;
+    }
     if (state.phase === "running") {
       if (!sceneTimer) {
-        /* the blade lands (70% into each chop) exactly on a wall-clock second, like the timer digits */
-        sceneStart = Math.ceil((Date.now() + 700) / 1000) * 1000 - 700;
-        sceneTimer = setInterval(function () {
-          var el = Date.now() - sceneStart;
-          drawScene("running", el < 0 ? 0 : el % CYCLE_MS);
-        }, 50);
+        if (kind === "pot") {
+          /* one picture per wall-clock second, five in a loop */
+          sceneTimer = setInterval(function () {
+            var fr = Math.floor(Date.now() / 1000);
+            if (fr === lastPotFrame) return;
+            lastPotFrame = fr;
+            drawScene("pot", fr % 5);
+          }, 50);
+          lastPotFrame = Math.floor(Date.now() / 1000);
+          drawScene("pot", lastPotFrame % 5);
+        } else {
+          /* the blade lands (70% into each chop) exactly on a wall-clock second, like the timer digits */
+          sceneStart = Math.ceil((Date.now() + 700) / 1000) * 1000 - 700;
+          sceneTimer = setInterval(function () {
+            var el = Date.now() - sceneStart;
+            drawScene("running", el < 0 ? 0 : el % CYCLE_MS);
+          }, 50);
+        }
       }
       return;
     }
     if (sceneTimer) { clearInterval(sceneTimer); sceneTimer = null; }
-    if (state.phase === "running") drawScene("running", CUT_MS * 2 + 400);
+    if (kind === "pot") drawScene("pot", 0);
     else drawScene(state.phase, 0);
   }
 
@@ -1098,7 +1239,7 @@ button { font-family: inherit; }
   var ICON = {
     play: pxSvg(["X....", "XX...", "XXX..", "XXXX.", "XXXXX", "XXXX.", "XXX..", "XX...", "X...."], 3),
     pause: pxSvg(["XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX"], 3),
-    home: pxSvg(["....X....", "...XXX...", "..XXXXX..", ".XXXXXXX.", "XXXXXXXXX", ".XX...XX.", ".XX...XX.", ".XX...XX."], 4),
+    restart: pxSvg(["........XXXXX.....", ".............XX...", "...............X..", "................X.", "...X............X.", "..XXX............X", ".XXXXX...........X", "XXXXXXX..........X", "...X.............X", "...X.............X", "....X...........X.", "....X...........X.", ".....X.........X..", "......XX.....XX...", "........XXXXX....."], 1.5),
     clock: pxSvg(["..XXXXX..", ".X.....X.", "X...X...X", "X...X...X", "X...XXX.X", "X.......X", "X.......X", ".X.....X.", "..XXXXX.."], 3),
     sliders: pxSvg([".X..X..X.", ".X..X..X.", "XXX.X..X.", ".X.XXX.X.", ".X..X.XXX", ".X..X..X.", ".X..X..X."], 3)
   };
@@ -1117,6 +1258,14 @@ button { font-family: inherit; }
     if (state.phase === "running") { msg = "집중하는 중"; startLabel = "일시정지"; }
     if (state.phase === "paused") { msg = "잠깐 멈췄어요"; startLabel = "계속"; }
     if (state.phase === "done") { msg = "다 채웠어요! 수고했어요"; startLabel = "한 번 더"; }
+    if (state.mode === "break") {
+      if (state.phase === "running") msg = "휴식 중";
+      if (state.phase === "paused") msg = "휴식을 잠깐 멈췄어요";
+      startLabel = state.phase === "running" ? "일시정지" : "계속";
+    }
+    var asking = state.phase === "done" && state.mode === "focus";
+    $("controls").classList.toggle("ask", asking);
+    if (asking) msg = "다 채웠어요! 5분 또는 10분 휴식을 할까요?";
     statusEl.textContent = msg;
     var ico = state.phase === "running" ? ICON.pause : ICON.play;
     if (ico !== lastIco) { btnStart.innerHTML = ico; lastIco = ico; }
@@ -1129,7 +1278,14 @@ button { font-family: inherit; }
   btnStart.addEventListener("click", function () {
     if (state.phase === "running") pause(); else start();
   });
-  btnReset.innerHTML = ICON.home;
+  var POT_ICON = pxSvg(["..XXXXXXXXX..", "XXXXXXXXXXXXX", ".XXXXXXXXXXX.", ".XXXXXXXXXXX.", ".XXXXXXXXXXX.", "..XXXXXXXXX..", "...XXXXXXX..."], 2);
+  $("brk5").innerHTML = POT_ICON + "<span>5min</span>";
+  $("brk10").innerHTML = POT_ICON + "<span>10min</span>";
+  $("brk5").setAttribute("aria-label", "5분 휴식");
+  $("brk10").setAttribute("aria-label", "10분 휴식");
+  $("brk5").addEventListener("click", function () { startBreak(5); });
+  $("brk10").addEventListener("click", function () { startBreak(10); });
+  btnReset.innerHTML = ICON.restart;
   btnReset.setAttribute("aria-label", "처음으로");
   btnReset.addEventListener("click", reset);
   document.addEventListener("keydown", function (e) {
@@ -1157,7 +1313,7 @@ button { font-family: inherit; }
   tabSettings.addEventListener("click", function () { showTab("settings"); });
 
   /* ---------- settings ---------- */
-  var chipsEl = $("chips"), swWake = $("swWake"), swSound = $("swSound"), wakeHint = $("wakeHint");
+  var chipsEl = $("chips"), swWake = $("swWake"), swSound = $("swSound");
 
   DURATIONS.forEach(function (m) {
     var b = document.createElement("button");
@@ -1203,9 +1359,6 @@ button { font-family: inherit; }
     });
     swWake.setAttribute("aria-checked", settings.wake ? "true" : "false");
     swSound.setAttribute("aria-checked", settings.sound ? "true" : "false");
-    wakeHint.textContent = wakeSupported
-      ? "타이머가 돌아가는 동안에만 화면이 꺼지지 않아요."
-      : "이 브라우저는 화면 켜 두기를 지원하지 않아요. 아이폰은 iOS 16.4 이상에서 쓸 수 있어요.";
   }
 
   swWake.addEventListener("click", function () {
